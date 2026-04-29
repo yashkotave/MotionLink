@@ -1,0 +1,91 @@
+1. Check if the browser supports geolocation using `navigator.geolocation`.
+
+2. Set geolocation options:
+
+   * `enableHighAccuracy: true`
+   * `timeout: 5000`
+   * `maximumAge: 0`
+
+3. Use `navigator.geolocation.watchPosition()` to continuously track the user’s live location.
+
+4. Inside `watchPosition()`, get:
+
+   * `latitude`
+   * `longitude`
+
+5. Emit the location data using Socket.IO:
+
+   ```javascript
+   socket.emit("send-location", {
+       latitude,
+       longitude
+   });
+   ```
+
+6. If there is an error while fetching location, log it using:
+
+   ```javascript
+   console.error(error);
+   ```
+
+7. Initialize the Leaflet map:
+
+   * Center: `[0, 0]`
+   * Zoom level: `15`
+
+8. Add OpenStreetMap tile layer using:
+
+   ```javascript
+   L.tileLayer()
+   ```
+
+9. Create an empty object to store markers:
+
+   ```javascript
+   const markers = {};
+   ```
+
+10. Listen for location updates from the server using:
+
+```javascript
+socket.on("receive-location", ...)
+```
+
+11. From received data, extract:
+
+* `id`
+* `latitude`
+* `longitude`
+
+12. Center the map on the latest coordinates using:
+
+```javascript
+map.setView([latitude, longitude]);
+```
+
+13. If marker already exists for that `id`:
+
+* Update marker position using:
+
+  ```javascript
+  marker.setLatLng()
+  ```
+
+14. Otherwise:
+
+* Create a new marker using:
+
+  ```javascript
+  L.marker()
+  ```
+* Add it to the map
+* Store it inside `markers`
+
+15. When a user disconnects:
+
+* Remove their marker from the map
+* Delete that marker from the `markers` object using:
+
+  ```javascript
+  delete markers[id];
+  ```
