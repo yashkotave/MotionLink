@@ -1,38 +1,44 @@
-const express = require('express');
-const app = express();
-const http = require('http');
-const socketio = require('socket.io');
-const path = require('path');
+const socket = io();
 
-const server = http.createServer(app);
-const io = socketio(server, {
-    cors: {
-        origin: "*",  // ← ADD THIS
-        methods: ["GET", "POST"]
+if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+        (position) => {
+            const { latitude, longitude } = position.coords;
+            console.log("My Location:", latitude, longitude);
+            socket.emit("send-location", { latitude, longitude });
+        },
+        (error) => {
+            console.error(error);
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        }
+    );
+}
+
+const map = L.map("map").setView([0, 0], 15);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "OpenStreetMap"
+}).addTo(map);
+
+const markers = {};
+
+socket.on("receive-location", (data) => {
+    const { id, latitude, longitude } = data;
+    map.setView([latitude, longitude], 16);
+    if (markers[id]) {
+        markers[id].setLatLng([latitude, longitude]);
+    } else {
+        markers[id] = L.marker([latitude, longitude]).addTo(map);
     }
 });
 
-app.set("view engine", "ejs");
-app.use(express.static(path.join(__dirname, "public")));
-
-io.on("connection", function (socket) {
-    console.log("connected");
-
-    socket.on("send-location", function (data) {
-        io.emit("receive-location", {
-            id: socket.id,
-            latitude: data.latitude,
-            longitude: data.longitude
-        });
-    });
-
-    socket.on("disconnect", function () {
-        io.emit("user-disconnected", socket.id);
-    });
+socket.on("user-disconnected", (id) => {
+    if (markers[id]) {
+        map.removeLayer(markers[id]);
+        delete markers[id];
+    }
 });
-
-app.get("/", function (req, res) {
-    res.render("index");
-});
-
-server.listen(3000);
